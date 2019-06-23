@@ -1,2 +1,9 @@
-def run_command(command):
-    return {}
+import fbchat
+
+
+class Server:
+
+    def run_command(self, command):
+        return {
+            "echo": command,
+        }
