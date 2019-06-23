@@ -5,14 +5,22 @@ import sys
 import mercury
 
 
+def broadcast(message):
+    json.dump(message, sys.stdout)
+
+
 def main():
-    parser = argparse.ArgumentParser(description="Emacs interface to Facebook Messenger")
-    args = parser.parse_args()
-    server = mercury.Server()
+    parser = argparse.ArgumentParser(
+        description="Emacs interface to Facebook Messenger",
+    )
+    parser.parse_args()
+    server = mercury.Server(broadcast)
     while True:
         line = input()
-        command = json.loads(line)
-        response = server.run_command(command)
+        if not line:
+            continue
+        request = json.loads(line)
+        response = server.send_request(request)
         json.dump(response, sys.stdout)
     sys.exit(0)
 
