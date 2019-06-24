@@ -201,10 +201,11 @@ class Server:
             json.dump(contents, f, indent=2)
             f.write("\n")
 
-    def __init__(self, send_message):
+    def __init__(self, send_message, load_session):
         self.send_message = send_message
         self.client = Client()
-        self._read_session_file()
+        if load_session:
+            self._read_session_file()
         self.thread_list = ThreadList()
 
     def _handle_message(self, message):
