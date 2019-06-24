@@ -65,12 +65,12 @@ Receives response from server.
       "threads": [
         {
           "threadID": "1234",
-          "timestamp": "1561149590498",
+          "timestamp": 1561149590498,
           "unread": true
         },
         {
           "threadID": "5678",
-          "timestamp": "1561146263105",
+          "timestamp": 1561146263105,
           "unread": false
         }
       ]
@@ -82,7 +82,7 @@ Sent by client to fetch more threads if desired.
       "message": "getThreads",
       "id": "52",
       "numThreads": 30,
-      "beforeTimestamp": "1561146263105"
+      "beforeTimestamp": 1561146263105
     }
 
 Receives same response.
@@ -95,7 +95,7 @@ Sent by server.
       "message": "receiveMessage",
       "threadID": "1234",
       "senderID": "5678",
-      "timestamp": "1561146263105",
+      "timestamp": 1561146263105,
       "type": "text",
       "text": "Hello, world!"
     }
@@ -106,7 +106,7 @@ For images.
       "message": "receiveMessage",
       "threadID": "1234",
       "senderID": "5678",
-      "timestamp": "1561146262063",
+      "timestamp": 1561146262063,
       "type": "image",
       "imageURL": "https://scontent-sjc3-1.xx.fbcdn.net/..."
     }
@@ -134,7 +134,7 @@ Response from server.
       "messages": [
         {
           "senderID": "1234",
-          "timestamp": "1561146262063",
+          "timestamp": 1561146262063,
           "type": "text",
           "text": "Hi there!"
         }
@@ -148,7 +148,7 @@ Sent by client to fetch more messages if desired.
       "id": "78",
       "threadID": "1234",
       "numMessages": 30,
-      "beforeTimestamp": "1561146262063"
+      "beforeTimestamp": 1561146262063
     }
 
 ### Send messages
