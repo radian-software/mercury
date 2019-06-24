@@ -1,10 +1,53 @@
 import json
 import pathlib
 import re
+import sys
+import traceback
 
 import atomicwrites
 import fbchat
 import fbchat.models
+
+
+class Client:
+
+    def __init__(self):
+        self.client = None
+
+    def _log(self, name):
+        print("fbchat: {}".format(name), file=sys.stderr)
+
+    def login(self, username, password):
+        self._log("login")
+        if self.client is None:
+            self.client = fbchat.Client(username, password)
+        else:
+            self.client.login(username, password)
+
+    def setSession(self, session_cookies):
+        self._log("setSession")
+        if self.client is None:
+            self.client = fbchat.Client(
+                None, None, session_cookies=session_cookies,
+            )
+        else:
+            self.client.setSession(session_cookies)
+
+    def isLoggedIn(self):
+        self._log("isLoggedIn")
+        if self.client is None:
+            return False
+        return self.client.isLoggedIn()
+
+    def __getattr__(self, name):
+        if not self.client:
+            raise Exception("not logged in")
+
+        def wrapped(*args, **kwargs):
+            self._log(name)
+            return getattr(self.client, name)(*args, **kwargs)
+
+        return wrapped
 
 
 class ThreadList:
@@ -28,13 +71,16 @@ class ThreadList:
     def _convert_fb_thread(self, fb_thread):
         return {
             "threadID": fb_thread.uid,
+            "name": fb_thread.name,
             "timestamp": int(fb_thread.last_message_timestamp),
             "unread": None,  # computed later
         }
 
     def _fetch(self, client, before=None):
         fb_threads = client.fetchThreadList(before=before)
-        return reversed(self._convert_fb_thread(fbt) for fbt in fb_threads)
+        threads = [self._convert_fb_thread(fbt) for fbt in fb_threads]
+        threads.reverse()
+        return threads
 
     def _check_unread_statuses(self, client):
         unread_tids = set(client.fetchUnread())
@@ -66,7 +112,6 @@ class ThreadList:
             ]
             # Atomic update.
             self.threads = filtered_threads + new_threads
-        self._write_threads_file()
 
     def _fetch_earlier(self, client):
         old_threads = self._fetch(client, before=self.threads["timestamp"])
@@ -77,6 +122,10 @@ class ThreadList:
         self.threads = old_threads + self.threads
         self._write_threads_file()
 
+    def _finalize(self, client):
+        self._check_unread_statuses(client)
+        self._write_threads_file()
+
     def get_threads(self, client, num, before=None):
         assert num > 0
         if not before:
@@ -84,11 +133,13 @@ class ThreadList:
         while True:
             if len(self.threads) >= num:
                 if not before:
+                    self._finalize(client)
                     return self.threads[-num:]
                 if self.threads[num]["timestamp"] > before:
                     offset = 0
                     while self.threads[offset + num]["timestamp"] < before:
                         offset += 1
+                    self._finalize(client)
                     return self.threads[offset:offset + num]
             self._fetch_earlier(client)
 
@@ -130,12 +181,8 @@ class Server:
         with open(Server._SESSION_FILE) as f:
             contents = json.load(f)
             session_cookies = contents["session_cookies"]
-            if self.client:
-                self.client.logout()
             try:
-                self.client = fbchat.Client(
-                    None, None, session_cookies=session_cookies,
-                )
+                self.client.setSession(session_cookies)
             except fbchat.models.FBchatException:
                 pass
 
@@ -149,7 +196,7 @@ class Server:
 
     def __init__(self, send_message):
         self.send_message = send_message
-        self.client = None
+        self.client = Client()
         self._read_session_file()
         self.thread_list = ThreadList()
 
@@ -160,9 +207,7 @@ class Server:
         if message_type == "login":
             username = message["username"]
             password = message["password"]
-            if self.client:
-                self.client.logout()
-            self.client = fbchat.Client(username, password)
+            self.client.login(username, password)
             return {}
         if not self.client.isLoggedIn():
             self.send_message({
@@ -180,7 +225,7 @@ class Server:
 
     def handle_message(self, message):
         try:
-            response = self._handle_message()
+            response = self._handle_message(message)
             self.send_message({
                 "message": "result",
                 "id": message.get("id"),
@@ -188,8 +233,9 @@ class Server:
                 **response,
             })
         except Exception as e:
+            traceback.print_exc()
             self.send_message({
                 "message": "result",
                 "id": message.get("id"),
-                "error": str(e),
+                "error": "{}: {}".format(type(e).__name__, e),
             })
