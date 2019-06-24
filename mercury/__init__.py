@@ -114,10 +114,10 @@ class ThreadList:
             self.threads = filtered_threads + new_threads
 
     def _fetch_earlier(self, client):
-        old_threads = self._fetch(client, before=self.threads["timestamp"])
+        old_threads = self._fetch(client, before=self.threads[0]["timestamp"])
         thread_ids = {t["threadID"] for t in self.threads}
         for new_thread in old_threads:
-            assert new_thread["threadID"] not in thread_ids
+            assert new_thread["threadID"] not in thread_ids, "duplicate thread"
         # Atomic update.
         self.threads = old_threads + self.threads
         self._write_threads_file()
@@ -127,7 +127,7 @@ class ThreadList:
         self._write_threads_file()
 
     def get_threads(self, client, num, before=None):
-        assert num > 0
+        assert num > 0, "negative thread count"
         if not before:
             self._fetch_latest(client)
         while True:
@@ -165,7 +165,7 @@ class Thread:
             f.write("\n")
 
     def __init__(self, tid):
-        assert re.fullmatch(r"[0-9]+", self.tid)
+        assert re.fullmatch(r"[0-9]+", self.tid), "illegal thread ID"
         self.tid = tid
         self.messages = []
         self._read_messages_file()
