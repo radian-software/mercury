@@ -24,7 +24,7 @@ Sent by server if a `login` message is needed.
 Sent by client to log in.
 
     {
-      "command": "login",
+      "message": "login",
       "username": "radon.neon@gmail.com",
       "password": "[REDACTED]",
       "id": "42"
@@ -33,7 +33,7 @@ Sent by client to log in.
 Receives response from server.
 
     {
-      "command": "result",
+      "message": "result",
       "id": "42",
       "error": null
     }
@@ -41,7 +41,7 @@ Receives response from server.
 On error.
 
     {
-      "command": "result",
+      "message": "result",
       "id": 42,
       "error": "Couldn't log in for some reason"
     }
@@ -51,7 +51,7 @@ On error.
 Sent by client to fetch the initial thread list.
 
     {
-      "command": "getThreads",
+      "message": "getThreads",
       "id": "51",
       "numThreads": 30
     }
@@ -59,7 +59,7 @@ Sent by client to fetch the initial thread list.
 Receives response from server.
 
     {
-      "command": "result",
+      "message": "result",
       "id": "51",
       "error": null,
       "threads": [
@@ -79,7 +79,7 @@ Receives response from server.
 Sent by client to fetch more threads if desired.
 
     {
-      "command": "getThreads",
+      "message": "getThreads",
       "id": "52",
       "numThreads": 30,
       "beforeTimestamp": "1561146263105"
@@ -150,3 +150,18 @@ Sent by client to fetch more messages if desired.
       "numMessages": 30,
       "beforeTimestamp": "1561146262063"
     }
+
+### Send messages
+
+Sent by client.
+
+    {
+      "message": "sendMessage",
+      "id": "79",
+      "threadID": "1234",
+      "type": "text",
+      "message": "Hello!"
+    }
+
+Same as usual for images and files. This will trigger a message
+notification once the send has been processed.
