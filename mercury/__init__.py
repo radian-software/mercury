@@ -25,6 +25,73 @@ class ThreadList:
         self.threads = []
         self._read_threads_file()
 
+    def _convert_fb_thread(self, fb_thread):
+        return {
+            "threadID": fb_thread.uid,
+            "timestamp": int(fb_thread.last_message_timestamp),
+            "unread": None,  # computed later
+        }
+
+    def _fetch(self, client, before=None):
+        fb_threads = client.fetchThreadList(before=before)
+        return reversed(self._convert_fb_thread(fbt) for fbt in fb_threads)
+
+    def _check_unread_statuses(self, client):
+        unread_tids = set(client.fetchUnread())
+        for thread in self.threads:
+            thread["unread"] = thread["threadID"] in unread_tids
+
+    def _fetch_latest(self, client):
+        if not self.threads:
+            self.threads = self._fetch(client)
+        else:
+            since_timestamp = self.threads[-1]["timestamp"]
+            new_threads = self._fetch(client)
+            # Fetch more threads until we have definitely fetched all
+            # the threads more recently updated than the most recently
+            # updated thread we already have.
+            while new_threads[0]["timestamp"] > since_timestamp:
+                new_thread_batch = self._fetch(
+                    client, before=new_threads[0]["timestamp"],
+                )
+                new_threads = new_thread_batch + new_threads
+            # Now discard the threads whose updates we already have.
+            new_threads = [
+                t for t in new_threads if t["timestamp"] > since_timestamp
+            ]
+            # Discard any new threads we already have an older copy of.
+            new_thread_ids = {t["threadID"] for t in new_threads}
+            filtered_threads = [
+                t for t in self.threads if t["threadID"] not in new_thread_ids
+            ]
+            # Atomic update.
+            self.threads = filtered_threads + new_threads
+        self._write_threads_file()
+
+    def _fetch_earlier(self, client):
+        old_threads = self._fetch(client, before=self.threads["timestamp"])
+        thread_ids = {t["threadID"] for t in self.threads}
+        for new_thread in old_threads:
+            assert new_thread["threadID"] not in thread_ids
+        # Atomic update.
+        self.threads = old_threads + self.threads
+        self._write_threads_file()
+
+    def get_threads(self, client, num, before=None):
+        assert num > 0
+        if not before:
+            self._fetch_latest(client)
+        while True:
+            if len(self.threads) >= num:
+                if not before:
+                    return self.threads[-num:]
+                if self.threads[num]["timestamp"] > before:
+                    offset = 0
+                    while self.threads[offset + num]["timestamp"] < before:
+                        offset += 1
+                    return self.threads[offset:offset + num]
+            self._fetch_earlier(client)
+
 
 class Thread:
 
@@ -84,6 +151,7 @@ class Server:
         self.send_message = send_message
         self.client = None
         self._read_session_file()
+        self.thread_list = ThreadList()
 
     def _handle_message(self, message):
         message_type = message.get("message")
@@ -101,6 +169,14 @@ class Server:
                 "message": "requestLogin",
             })
             raise Exception("not logged in")
+        if message_type == "getThreads":
+            num = message["numThreads"]
+            before = message.get("beforeTimestamp")
+            return {
+                "threads": self.thread_list.get_threads(
+                    self.client, num, before=before,
+                )
+            }
 
     def handle_message(self, message):
         try:
