@@ -16,7 +16,7 @@ class ThreadList:
             with open(ThreadList._THREADS_FILE) as f:
                 self.threads = json.load(f)
 
-    def _write_thread_file(self):
+    def _write_threads_file(self):
         with atomicwrites.atomic_write(ThreadList._THREADS_FILE, overwrite=True) as f:
             json.dump(self.threads, f, indent=2)
             f.write("\n")
