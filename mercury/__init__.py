@@ -116,10 +116,17 @@ class ThreadList:
     def _fetch_earlier(self, client):
         old_threads = self._fetch(client, before=self.threads[0]["timestamp"])
         thread_ids = {t["threadID"] for t in self.threads}
-        for new_thread in old_threads:
-            assert new_thread["threadID"] not in thread_ids, "duplicate thread"
+        # In addition to threads that actually come before the
+        # provided timestamp, the API also returns threads with the
+        # same timestamp. Presumably it is possible for more than one
+        # thread to have the same timestamp, although hopefully not
+        # more than 20. Anyway, we should filter the ones we already
+        # have.
+        filtered_old_threads = [
+            t for t in old_threads if t["threadID"] not in thread_ids
+        ]
         # Atomic update.
-        self.threads = old_threads + self.threads
+        self.threads = filtered_old_threads + self.threads
         self._write_threads_file()
 
     def _finalize(self, client):
@@ -135,7 +142,7 @@ class ThreadList:
                 if not before:
                     self._finalize(client)
                     return self.threads[-num:]
-                if self.threads[num]["timestamp"] > before:
+                if self.threads[num]["timestamp"] <= before:
                     offset = 0
                     while self.threads[offset + num]["timestamp"] < before:
                         offset += 1
