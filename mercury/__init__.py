@@ -1,9 +1,56 @@
 import json
 import pathlib
+import re
 
 import atomicwrites
 import fbchat
 import fbchat.models
+
+
+class ThreadList:
+
+    _THREADS_FILE = pathlib.Path("threads.json")
+
+    def _read_threads_file(self):
+        if ThreadList._THREADS_FILE.is_file():
+            with open(ThreadList._THREADS_FILE) as f:
+                self.threads = json.load(f)
+
+    def _write_thread_file(self):
+        with atomicwrites.atomic_write(ThreadList._THREADS_FILE, overwrite=True) as f:
+            json.dump(self.threads, f, indent=2)
+            f.write("\n")
+
+    def __init__(self):
+        self.threads = []
+        self._read_threads_file()
+
+
+class Thread:
+
+    _THREADS_DIR = pathlib.Path("threads")
+
+    def _get_thread_filename(self):
+        return Thread._THREADS_DIR / (self.tid + ".json")
+
+    def _read_thread_file(self):
+        filename = self._get_thread_filename()
+        if filename.is_file():
+            with open(filename) as f:
+                self.messages = json.load(f)
+
+    def _write_thread_file(self):
+        filename = self._get_thread_filename()
+        filename.parent.mkdir(parents=True, exist_ok=True)
+        with atomicwrites.atomic_write(filename, overwrite=True) as f:
+            json.dump(self.messages, f, indent=2)
+            f.write("\n")
+
+    def __init__(self, tid):
+        assert re.fullmatch(r"[0-9]+", self.tid)
+        self.tid = tid
+        self.messages = []
+        self._read_messages_file()
 
 
 class Server:
