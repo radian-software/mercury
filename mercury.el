@@ -23,6 +23,10 @@
 ;; variable declarations in each section, run M-x occur with the
 ;; following query: ^;;;;* \|^(
 
+(require 'cl-lib)
+(require 'json)
+(require 'subr-x)
+
 (defgroup mercury nil
   "Emacs interface to Facebook Messenger."
   :group 'applications
@@ -57,7 +61,7 @@ Example:
 (defvar mercury--server-buffer-name " *mercury-server*"
   "Name of buffer to use for Mercury server.")
 
-(defmacro mercury--with-server-buffer (&rest body)
+(defmacro mercury--server-with-buffer (&rest body)
   "Exec BODY with the Mercury server buffer current.
 Disable read-only status and go to the end of the buffer for the
 duration of BODY."
@@ -74,7 +78,7 @@ duration of BODY."
       (concat val ":" path)
     val))
 
-(defmacro mercury--with-server-env (&rest body)
+(defmacro mercury--server-with-env (&rest body)
   "Exec BODY in context of Mercury virtualenv."
   (declare (indent defun))
   `(let* ((virtualenv-bin (mercury--expand-file-name "virtualenv" "bin"))
@@ -102,19 +106,19 @@ duration of BODY."
                (mercury--expand-file-name virtualenv "poetry.lock"))
               (buffer-string)))))
     (unless (and (equal repo-lockfile installed-lockfile)
-                 (mercury--with-server-buffer
-                   (mercury--with-server-env
+                 (mercury--server-with-buffer
+                   (mercury--server-with-env
                      (= 0 (call-process
                            "python" nil t nil
                            "-m" "mercury" "--no-load-session")))))
-      (mercury--with-server-buffer
+      (mercury--server-with-buffer
         (ignore-errors
           (delete-directory virtualenv 'recursive))
         (make-directory mercury-directory 'parents)
         (unless (= 0 (call-process "python3" nil t nil
                                    "-m" "venv" virtualenv))
           (error "Failed to create virtualenv"))
-        (mercury--with-server-env
+        (mercury--server-with-env
           (let ((requirements nil))
             (with-temp-buffer
               (insert repo-lockfile)
@@ -140,6 +144,44 @@ duration of BODY."
            (mercury--expand-file-name mercury--source-dir "poetry.lock")
            (mercury--expand-file-name virtualenv "poetry.lock")))))))
 
+(defvar mercury--server-output ""
+  "Collected output from stdout of the Mercury server.
+This is used by the filter function to keep track of output in
+the case that it does not receive a full line of output in a
+single call.")
+
+(defvar mercury--server-handlers nil
+  "List of handlers for messages from the Mercury server.
+When the server sends a message, it is decoded from JSON into an
+alist, and then the resulting object is passed to each callback
+in turn until one of them returns non-nil.")
+
+(defun mercury--server-filter (proc string)
+  "Process filter for the Mercury server.
+PROC is the Mercury server process, and STRING is the data that
+was sent to stdout by the server."
+  (setq mercury--server-output (concat mercury--server-output string))
+  (save-match-data
+    (mercury--with-server-buffer
+      (while (string-match "\\(.*\\)\n" string)
+        (let ((line (match-string 1 string)))
+          (setq string (substring string (match-end 0)))
+          (let ((moving (= (point) (process-mark proc))))
+            (save-excursion
+              (goto-char (process-mark proc))
+              (let ((inhibit-read-only t))
+                (when (string-prefix-p "{" line)
+                  (insert "-> "))
+                (insert line "\n"))
+              (set-marker (process-mark proc) (point)))
+            (when moving
+              (goto-char (process-mark proc))))
+          (when (string-prefix-p "{" line)
+            (let ((msg (json-read-from-string line)))
+              (cl-dolist (handler mercury--server-handlers)
+                (when (funcall handler msg)
+                  (cl-return))))))))))
+
 (defvar mercury--server-process nil
   "Mercury server process object. Communicates on stdio.")
 
@@ -153,6 +195,36 @@ duration of BODY."
       (accept-process-output mercury--server-process 0.1 nil 'just-this-one)
       (when (process-live-p mercury--server-process)
         (kill-process mercury--server-process)))))
+
+(defun mercury--server-start ()
+  "Start the Mercury server, if it is not already running."
+  (unless (process-live-p mercury--server-process)
+    (mercury--server-with-buffer
+      (mercury--server-with-env
+        (setq mercury--server-process
+              (make-process
+               :name "mercury"
+               :buffer (current-buffer)
+               :command '("python" "-m" "mercury")
+               :noquery t
+               :filter #'mercury--server-filter))))))
+
+(defun mercury--server-send-message (msg)
+  "Send a MSG to the server.
+MSG is converted to JSON before being fed to the server on stdin.
+If the server has not been started, then start it first."
+  (mercury--server-start)
+  (let ((line (json-encode msg)))
+    (mercury--server-with-buffer
+      (let ((moving (= (point) (process-mark mercury--server-process))))
+        (save-excursion
+          (goto-char (process-mark mercury--server-process))
+          (insert "<- " line "\n")
+          (set-marker (process-mark mercury--server-process) (point)))
+        (when moving
+          (goto-char (process-mark mercury--server-process)))
+        (process-send-string mercury--server-process line)
+        (process-send-string mercury--server-process "\n")))))
 
 (define-derived-mode mercury-thread-list-mode special-mode "Mercury"
   "Major mode to list Mercury threads.")
