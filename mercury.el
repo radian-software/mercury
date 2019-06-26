@@ -199,6 +199,7 @@ was sent to stdout by the server."
 (defun mercury--server-start ()
   "Start the Mercury server, if it is not already running."
   (unless (process-live-p mercury--server-process)
+    (mercury--server-install)
     (mercury--server-with-buffer
       (mercury--server-with-env
         (setq mercury--server-process
