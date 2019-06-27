@@ -6,7 +6,7 @@
 ;; Created: 30 Apr 2019
 ;; Homepage: https://github.com/raxod502/mercury
 ;; Keywords: applications
-;; Package-Requires: ((emacs "26"))
+;; Package-Requires: ((emacs "25.2"))
 ;; Version: 0
 
 ;;; Commentary:
@@ -25,6 +25,7 @@
 
 (require 'cl-lib)
 (require 'json)
+(require 'seq)
 (require 'subr-x)
 
 (defgroup mercury nil
@@ -40,7 +41,8 @@
     user-emacs-directory))
   "Directory in which Mercury files are stored.
 These include your session cookies, your messages history, and
-the Mercury Python virtualenv.")
+the Mercury Python virtualenv."
+  :type 'directory)
 
 (defvar mercury--source-dir
   (file-name-directory
@@ -151,36 +153,38 @@ the case that it does not receive a full line of output in a
 single call.")
 
 (defvar mercury--server-handlers nil
-  "List of handlers for messages from the Mercury server.
-When the server sends a message, it is decoded from JSON into an
-alist, and then the resulting object is passed to each callback
-in turn until one of them returns non-nil.")
+  "Alist of handlers for messages from the Mercury server.
+Only the values are significant for the server; they are the
+handlers. When the server sends a message, it is decoded from
+JSON into an alist, and then the resulting object is passed to
+each handler in turn until one of them returns non-nil.")
 
 (defun mercury--server-filter (proc string)
   "Process filter for the Mercury server.
 PROC is the Mercury server process, and STRING is the data that
 was sent to stdout by the server."
   (setq mercury--server-output (concat mercury--server-output string))
-  (save-match-data
-    (mercury--with-server-buffer
-      (while (string-match "\\(.*\\)\n" string)
-        (let ((line (match-string 1 string)))
-          (setq string (substring string (match-end 0)))
-          (let ((moving (= (point) (process-mark proc))))
-            (save-excursion
-              (goto-char (process-mark proc))
-              (let ((inhibit-read-only t))
-                (when (string-prefix-p "{" line)
-                  (insert "-> "))
-                (insert line "\n"))
-              (set-marker (process-mark proc) (point)))
-            (when moving
-              (goto-char (process-mark proc))))
-          (when (string-prefix-p "{" line)
-            (let ((msg (json-read-from-string line)))
-              (cl-dolist (handler mercury--server-handlers)
-                (when (funcall handler msg)
-                  (cl-return))))))))))
+  (mercury--with-server-buffer
+    (while (string-match "\\(.*\\)\n" mercury--server-output)
+      (let ((line (match-string 1 mercury--server-output)))
+        (setq mercury--server-output (substring mercury--server-output (match-end 0)))
+        (let ((moving (= (point) (process-mark proc))))
+          (save-excursion
+            (goto-char (process-mark proc))
+            (let ((inhibit-read-only t))
+              (when (string-prefix-p "{" line)
+                (insert "-> "))
+              (insert line "\n"))
+            (set-marker (process-mark proc) (point)))
+          (when moving
+            (goto-char (process-mark proc))))
+        (when (string-prefix-p "{" line)
+          (let ((resp (json-read-from-string line)))
+            (when-let ((err (alist-get 'error resp)))
+              (error "Mercury server error: %s" err))
+            (cl-dolist (cell mercury--server-handlers)
+              (when (funcall (cdr cell) resp)
+                (cl-return)))))))))
 
 (defvar mercury--server-process nil
   "Mercury server process object. Communicates on stdio.")
@@ -227,8 +231,96 @@ If the server has not been started, then start it first."
         (process-send-string mercury--server-process line)
         (process-send-string mercury--server-process "\n")))))
 
+(defvar mercury--message-counter 0
+  "Value used for the `id' of the next message to the server.")
+
+(defun mercury--server-get-response (msg callback)
+  "Send a MSG to the server, and invoke CALLBACK with the response.
+An `id' attribute is added automatically to the message,
+overwriting any existing one. The CALLBACK is invoked with the
+same buffer current as is current when this function is invoked."
+  (let ((id mercury--message-counter)
+        (buffer (current-buffer)))
+    (cl-incf mercury--message-counter)
+    (setf (alist-get id mercury--server-handlers)
+          (lambda (resp)
+            (when (eq id (alist-get 'id resp))
+              (prog1 t
+                (setf (alist-get id mercury--server-handlers nil 'remove) nil)
+                (with-current-buffer (if (buffer-live-p buffer)
+                                         buffer
+                                       (current-buffer))
+                  (funcall callback resp))))))
+    (setf (alist-get 'id msg) id)
+    (mercury--server-send-message msg)))
+
+(defcustom mercury-thread-list-block-size 20
+  "How many threads to fetch at a time for the thread list buffer.
+The default value matches the number of threads that can be
+fetched from Facebook Messenger with a single API call."
+  :type 'integer)
+
+(defvar-local mercury--thread-list nil
+  "Data for the thread list displayed in the current buffer.
+The format is as returned by the Mercury server.")
+
+(defun mercury--thread-list-redisplay ()
+  "Recompute the text in the current (thread list) buffer.
+This function uses the value of `mercury--thread-list'."
+  (let ((inhibit-read-only t)
+        (line (line-number-at-pos))
+        (column (current-column)))
+    (erase-buffer)
+    (seq-do (lambda (thread)
+              (insert (alist-get 'name thread) "\n"))
+            (reverse mercury--thread-list))
+    (goto-char (point-min))
+    (forward-line (1- line))
+    (move-to-column column))
+  (message "Refreshing...done"))
+
+(defun mercury-thread-list-refresh (&optional more)
+  "Reset the current buffer to match the Mercury server's thread list.
+With prefix arg MORE, display more threads than are currently
+shown, according to the value of
+`mercury-thread-list-block-size'."
+  (interactive "P")
+  (unless (derived-mode-p 'mercury-thread-list-mode)
+    (user-error "Not in a Mercury thread list buffer"))
+  (message "Refreshing...")
+  (mercury--server-get-response
+   `((message . getThreads)
+     (numThreads . ,(+ mercury-thread-list-block-size
+                       (if more (length mercury--thread-list) 0))))
+   (lambda (resp)
+     (setq mercury--thread-list (alist-get 'threads resp))
+     (mercury--thread-list-redisplay))))
+
 (define-derived-mode mercury-thread-list-mode special-mode "Mercury"
   "Major mode to list Mercury threads.")
+
+(defcustom mercury-thread-list-keys
+  '(("g" . mercury-thread-list-refresh))
+  "Alist of keys for `mercury-thread-list-mode-map'.
+You must set this variable before loading Mercury in order for
+your setting to take effect. The keys are strings for `kbd', and
+the values are functions."
+  :type '(alist :key-type string :value-type function))
+
+(map-apply (lambda (keys func)
+             (define-key mercury-thread-list-mode-map (kbd keys) func))
+           mercury-thread-list-keys)
+
+(defcustom mercury-thread-list-buffer-name "*mercury-threads*"
+  "Name for Mercury thread list buffer."
+  :type 'string)
+
+(defun mercury-thread-list ()
+  "Pop to Mercury thread list buffer, creating it if necessary."
+  (interactive)
+  (with-current-buffer (get-buffer-create mercury-thread-list-buffer-name)
+    (mercury-thread-list-mode)
+    (pop-to-buffer (current-buffer))))
 
 ;;;; Closing remarks
 
