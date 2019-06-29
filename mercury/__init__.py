@@ -74,7 +74,7 @@ class ThreadList:
 
     def _convert_fb_thread(self, fb_thread):
         return {
-            "threadID": fb_thread.uid,
+            "id": fb_thread.uid,
             "name": fb_thread.name,
             "timestamp": int(fb_thread.last_message_timestamp),
             "unread": None,  # computed later
@@ -89,7 +89,7 @@ class ThreadList:
     def _check_unread_statuses(self, client):
         unread_tids = set(client.fetchUnread())
         for thread in self.threads:
-            thread["unread"] = thread["threadID"] in unread_tids
+            thread["unread"] = thread["id"] in unread_tids
 
     def _fetch_latest(self, client):
         if not self.threads:
@@ -110,16 +110,16 @@ class ThreadList:
                 t for t in new_threads if t["timestamp"] > since_timestamp
             ]
             # Discard any new threads we already have an older copy of.
-            new_thread_ids = {t["threadID"] for t in new_threads}
+            new_thread_ids = {t["id"] for t in new_threads}
             filtered_threads = [
-                t for t in self.threads if t["threadID"] not in new_thread_ids
+                t for t in self.threads if t["id"] not in new_thread_ids
             ]
             # Atomic update.
             self.threads = filtered_threads + new_threads
 
     def _fetch_earlier(self, client):
         old_threads = self._fetch(client, before=self.threads[0]["timestamp"])
-        thread_ids = {t["threadID"] for t in self.threads}
+        thread_ids = {t["id"] for t in self.threads}
         # In addition to threads that actually come before the
         # provided timestamp, the API also returns threads with the
         # same timestamp. Presumably it is possible for more than one
@@ -127,7 +127,7 @@ class ThreadList:
         # more than 20. Anyway, we should filter the ones we already
         # have.
         filtered_old_threads = [
-            t for t in old_threads if t["threadID"] not in thread_ids
+            t for t in old_threads if t["id"] not in thread_ids
         ]
         # Atomic update.
         self.threads = filtered_old_threads + self.threads
