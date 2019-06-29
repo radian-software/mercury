@@ -8,6 +8,8 @@ import atomicwrites
 import fbchat
 import fbchat.models
 
+import mercury.util
+
 
 class Client:
 
@@ -84,6 +86,30 @@ class ThreadList:
         fb_threads = client.fetchThreadList(before=before)
         threads = [self._convert_fb_thread(fbt) for fbt in fb_threads]
         threads.reverse()
+        if any(t["name"] is None for t in threads):
+            tids = [t["id"] for t in threads if t["name"] is None]
+            thread_info = client.fetchThreadInfo(*tids)
+            all_pids = set()
+            for info in thread_info.values():
+                all_pids.update(info.participants - {client.uid})
+            participant_names = {}
+            unknown_pids = set(all_pids)
+            for pid in all_pids:
+                for thread in self.threads + threads:
+                    if thread["id"] == pid:
+                        participant_names[pid] = thread["name"]
+                        unknown_pids.remove(pid)
+                        break
+            if unknown_pids:
+                for pid, info in client.fetchThreadInfo(*unknown_pids).items():
+                    participant_names[pid] = info.name
+            for thread in threads:
+                if thread["name"] is None:
+                    pids = thread_info[thread["id"]].participants - {client.uid}
+                    names = [participant_names[pid] for pid in pids]
+                    names.sort()
+                    name = mercury.util.natural_language_join(names)
+                    thread["name"] = name
         return threads
 
     def _check_unread_statuses(self, client):
