@@ -164,7 +164,7 @@ each handler in turn until one of them returns non-nil.")
 PROC is the Mercury server process, and STRING is the data that
 was sent to stdout by the server."
   (setq mercury--server-output (concat mercury--server-output string))
-  (mercury--with-server-buffer
+  (mercury--server-with-buffer
     (while (string-match "\\(.*\\)\n" mercury--server-output)
       (let ((line (match-string 1 mercury--server-output)))
         (setq mercury--server-output (substring mercury--server-output (match-end 0)))
