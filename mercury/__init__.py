@@ -40,12 +40,16 @@ class Client:
         return self.client.isLoggedIn()
 
     def __getattr__(self, name):
+        orig = getattr(self.client, name)
+        if not callable(orig):
+            return orig
+
         if not self.client:
             raise Exception("not logged in")
 
         def wrapped(*args, **kwargs):
             self._log(name)
-            return getattr(self.client, name)(*args, **kwargs)
+            return orig(*args, **kwargs)
 
         return wrapped
 
