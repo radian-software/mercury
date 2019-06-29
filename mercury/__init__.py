@@ -16,8 +16,16 @@ class Client:
     def __init__(self):
         self.client = None
 
-    def _log(self, name):
-        print("fbchat: {}".format(name), file=sys.stderr)
+    def _log(self, name, *args, secret=False, **kwargs):
+        if secret:
+            args_str = "<secret>"
+        elif len(args) + len(kwargs) > 5:
+            args_str = "..."
+        else:
+            args_strs = [repr(arg) for arg in args]
+            kwargs_strs = [key + "=" + repr(val) for key, val in kwargs.items()]
+            args_str = ", ".join(args_strs + kwargs_strs)
+        print("fbchat: {}({})".format(name, args_str), file=sys.stderr)
 
     def login(self, username, password):
         self._log("login")
@@ -27,7 +35,7 @@ class Client:
             self.client.login(username, password)
 
     def setSession(self, session_cookies):
-        self._log("setSession")
+        self._log("setSession", secret=True)
         if self.client is None:
             self.client = fbchat.Client(
                 None, None, session_cookies=session_cookies,
@@ -50,7 +58,7 @@ class Client:
             raise Exception("not logged in")
 
         def wrapped(*args, **kwargs):
-            self._log(name)
+            self._log(name, *args, secret=False, **kwargs)
             return orig(*args, **kwargs)
 
         return wrapped
