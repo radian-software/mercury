@@ -267,6 +267,7 @@ The format is as returned by the Mercury server.")
 (defun mercury--thread-list-redisplay ()
   "Recompute the text in the current (thread list) buffer.
 This function uses the value of `mercury--thread-list'."
+  ;; TODO: restore scroll position
   (let ((inhibit-read-only t)
         (line (line-number-at-pos))
         (column (current-column)))
