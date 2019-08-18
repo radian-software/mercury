@@ -12,7 +12,6 @@ import mercury.util
 
 
 class Client:
-
     def __init__(self):
         self.client = None
 
@@ -37,9 +36,7 @@ class Client:
     def setSession(self, session_cookies):
         self._log("setSession", secret=True)
         if self.client is None:
-            self.client = fbchat.Client(
-                None, None, session_cookies=session_cookies,
-            )
+            self.client = fbchat.Client(None, None, session_cookies=session_cookies)
         else:
             self.client.setSession(session_cookies)
 
@@ -136,13 +133,11 @@ class ThreadList:
             # updated thread we already have.
             while new_threads[0]["timestamp"] > since_timestamp:
                 new_thread_batch = self._fetch(
-                    client, before=new_threads[0]["timestamp"],
+                    client, before=new_threads[0]["timestamp"]
                 )
                 new_threads = new_thread_batch + new_threads
             # Now discard the threads whose updates we already have.
-            new_threads = [
-                t for t in new_threads if t["timestamp"] > since_timestamp
-            ]
+            new_threads = [t for t in new_threads if t["timestamp"] > since_timestamp]
             # Discard any new threads we already have an older copy of.
             new_thread_ids = {t["id"] for t in new_threads}
             filtered_threads = [
@@ -160,9 +155,7 @@ class ThreadList:
         # thread to have the same timestamp, although hopefully not
         # more than 20. Anyway, we should filter the ones we already
         # have.
-        filtered_old_threads = [
-            t for t in old_threads if t["id"] not in thread_ids
-        ]
+        filtered_old_threads = [t for t in old_threads if t["id"] not in thread_ids]
         # Atomic update.
         self.threads = filtered_old_threads + self.threads
         self._write_threads_file()
@@ -185,7 +178,7 @@ class ThreadList:
                     while self.threads[offset + num]["timestamp"] < before:
                         offset += 1
                     self._finalize(client)
-                    return self.threads[offset:offset + num]
+                    return self.threads[offset : offset + num]
             self._fetch_earlier(client)
 
 
@@ -232,9 +225,7 @@ class Server:
                 pass
 
     def _write_session_file(self):
-        contents = {
-            "session_cookies": self.client.getSession(),
-        }
+        contents = {"session_cookies": self.client.getSession()}
         with atomicwrites.atomic_write(Server._SESSION_FILE, overwrite=True) as f:
             json.dump(contents, f, indent=2)
             f.write("\n")
@@ -256,32 +247,32 @@ class Server:
             self.client.login(username, password)
             return {}
         if not self.client.isLoggedIn():
-            self.send_message({
-                "message": "requestLogin",
-            })
+            self.send_message({"message": "requestLogin"})
             raise Exception("not logged in")
         if message_type == "getThreads":
             num = message["numThreads"]
             before = message.get("beforeTimestamp")
             return {
-                "threads": self.thread_list.get_threads(
-                    self.client, num, before=before,
-                )
+                "threads": self.thread_list.get_threads(self.client, num, before=before)
             }
 
     def handle_message(self, message):
         try:
             response = self._handle_message(message)
-            self.send_message({
-                "message": "result",
-                "id": message.get("id"),
-                "error": None,
-                **response,
-            })
+            self.send_message(
+                {
+                    "message": "result",
+                    "id": message.get("id"),
+                    "error": None,
+                    **response,
+                }
+            )
         except Exception as e:
             traceback.print_exc()
-            self.send_message({
-                "message": "result",
-                "id": message.get("id"),
-                "error": "{}: {}".format(type(e).__name__, e),
-            })
+            self.send_message(
+                {
+                    "message": "result",
+                    "id": message.get("id"),
+                    "error": "{}: {}".format(type(e).__name__, e),
+                }
+            )
