@@ -357,6 +357,9 @@ thread."
 (define-derived-mode mercury-thread-mode mercury-mode "Mercury"
   "Major mode to view a Mercury thread.")
 
+(defvar-local mercury-thread-id nil
+  "ID of thread displayed in current `mercury-thread-mode' buffer.")
+
 (defun mercury-view-thread ()
   "Pop to Mercury thread buffer, creating it if necessary.
 The thread information is taken from the text properties at
@@ -369,6 +372,7 @@ point (which should be in a `mercury-thread-list-mode' buffer)."
     (with-current-buffer (get-buffer-create
                           (format mercury-thread-buffer-name-format name))
       (mercury-thread-mode)
+      (setq-local mercury-thread-id id)
       (pop-to-buffer (current-buffer)))))
 
 ;;;; Closing remarks
