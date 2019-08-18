@@ -289,7 +289,11 @@ This function uses the value of `mercury--thread-list'."
         (column (current-column)))
     (erase-buffer)
     (seq-do (lambda (thread)
-              (insert (alist-get 'name thread) "\n"))
+              (insert
+               (propertize
+                (concat (alist-get 'name thread) "\n")
+                'mercury-thread-id (alist-get 'id thread)
+                'mercury-thread-name (alist-get 'name thread))))
             (reverse mercury--thread-list))
     (goto-char (point-min))
     (forward-line (1- line))
@@ -313,11 +317,15 @@ shown, according to the value of
      (setq mercury--thread-list (alist-get 'threads resp))
      (mercury--thread-list-redisplay))))
 
-(define-derived-mode mercury-thread-list-mode special-mode "Mercury"
+(define-derived-mode mercury-mode special-mode "Mercury"
+  "Major mode for Mercury.")
+
+(define-derived-mode mercury-thread-list-mode mercury-mode "Mercury"
   "Major mode to list Mercury threads.")
 
 (defcustom mercury-thread-list-keys
-  '(("g" . mercury-thread-list-refresh))
+  '(("g" . mercury-thread-list-refresh)
+    ("RET" . mercury-view-thread))
   "Alist of keys for `mercury-thread-list-mode-map'.
 You must set this variable before loading Mercury in order for
 your setting to take effect. The keys are strings for `kbd', and
@@ -328,7 +336,7 @@ the values are functions."
              (define-key mercury-thread-list-mode-map (kbd keys) func))
            mercury-thread-list-keys)
 
-(defcustom mercury-thread-list-buffer-name "*mercury-threads*"
+(defcustom mercury-thread-list-buffer-name "*mercury threads*"
   "Name for Mercury thread list buffer."
   :type 'string)
 
@@ -339,6 +347,29 @@ the values are functions."
   (with-current-buffer (get-buffer-create mercury-thread-list-buffer-name)
     (mercury-thread-list-mode)
     (pop-to-buffer (current-buffer))))
+
+(defcustom mercury-thread-buffer-name-format "*mercury: %s*"
+  "Format string for name of Mercury thread buffers.
+This is formatted with one string argument, the name of the
+thread."
+  :type 'string)
+
+(define-derived-mode mercury-thread-mode mercury-mode "Mercury"
+  "Major mode to view a Mercury thread.")
+
+(defun mercury-view-thread ()
+  "Pop to Mercury thread buffer, creating it if necessary.
+The thread information is taken from the text properties at
+point (which should be in a `mercury-thread-list-mode' buffer)."
+  (interactive)
+  (let ((id (get-text-property (point) 'mercury-thread-id))
+        (name (get-text-property (point) 'mercury-thread-name)))
+    (unless (and id name)
+      (user-error "Not in a Mercury thread list"))
+    (with-current-buffer (get-buffer-create
+                          (format mercury-thread-buffer-name-format name))
+      (mercury-thread-mode)
+      (pop-to-buffer (current-buffer)))))
 
 ;;;; Closing remarks
 
