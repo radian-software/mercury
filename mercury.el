@@ -46,7 +46,11 @@ the Mercury Python virtualenv."
 
 (defvar mercury--source-dir
   (file-name-directory
-   (file-truename (or load-file-name buffer-file-name)))
+   (file-truename
+    (concat
+     (file-name-sans-extension
+      (or load-file-name buffer-file-name))
+     ".el")))
   "Directory containing the Mercury source repository.")
 
 (defun mercury--expand-file-name (&rest names)
@@ -316,6 +320,7 @@ the values are functions."
   "Name for Mercury thread list buffer."
   :type 'string)
 
+;;;###autoload
 (defun mercury-thread-list ()
   "Pop to Mercury thread list buffer, creating it if necessary."
   (interactive)
