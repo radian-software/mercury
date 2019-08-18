@@ -143,9 +143,21 @@ duration of BODY."
                           "pip" nil t nil
                           (cons "install" requirements)))
               (error "Failed to install dependencies")))
+          (let* ((lib-dirs (file-expand-wildcards
+                            (mercury--expand-file-name
+                             "virtualenv" "lib" "*"))))
+            (unless (= 1 (length lib-dirs))
+              (error "Directory %S has unexpected contents"
+                     (mercury--expand-file-name
+                      "virtualenv" "lib")))
+            (make-symbolic-link
+             (expand-file-name "mercury" mercury--source-dir)
+             (mercury--expand-file-name
+              (car lib-dirs) "site-packages" "mercury")))
           (unless (= 0 (call-process
                         "python" nil t nil "-m" "mercury" "--no-load-session"))
-            (error "Test run failed"))
+            ;; TODO: suggest checking *mercury-server* buffer.
+            (error "Installed Mercury into virtualenv, but it isn't working"))
           (copy-file
            (mercury--expand-file-name mercury--source-dir "poetry.lock")
            (mercury--expand-file-name virtualenv "poetry.lock")))))))
