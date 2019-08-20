@@ -208,6 +208,69 @@ class Thread:
         self.messages = []
         self._read_messages_file()
 
+    def _convert_fb_message(self, fb_message):
+        assert isinstance(fb_message.text, str), "message is not string"
+        # TODO: handle unread status.
+        return {
+            "senderID": fb_message.author,
+            "timestamp": fb_message.timestamp,
+            "type": "text",
+            "text": fb_message.text,
+            # Not returned to Mercury client.
+            "id": fb_message.uid,
+        }
+
+    def _fetch(self, client, before=None):
+        fb_messages = client.fetchThreadMessages(thread_id=self.tid, before=before)
+        messages = [self._convert_fb_message(m) for m in fb_messages]
+        messages.reverse()
+        return messages
+
+    def _fetch_latest(self, client):
+        if not self.messages:
+            self.messages = self._fetch(client)
+        else:
+            since_timestamp = self.messages[-1]["timestamp"]
+            new_messages = self._fetch(client)
+            # Keep fetching more new messages until we've definitely
+            # gotten all the ones as new as the latest one we already
+            # have.
+            while new_messages[0]["timestamp"] >= since_timestamp:
+                new_message_batch = self._fetch(
+                    client, before=new_messages[0]["timestamp"]
+                )
+                new_messages = new_message_batch + new_messages
+            # We'll get some overlap with messages that we've already
+            # fetched. Remove those, disambiguating by uid.
+            existing_mids = {m["id"] for m in self.messages}
+            new_messages = [m for m in new_messages if m["id"] not in existing_mids]
+            self.messages.extend(new_messages)
+        self._write_thread_file()
+
+    def _fetch_earlier(self, client):
+        old_messages = self._fetch(client, before=self.messages[0]["timestamp"])
+        existing_mids = {m["id"] for m in self.messages}
+        old_messages = [m for m in old_messages if m["id"] not in existing_mids]
+        self.messages = old_messages + self.messages
+        self._write_thread_file()
+
+    def get_messages(self, client, num, before=None):
+        assert num > 0, "negative message count"
+        if not before:
+            self._fetch_latest(client)
+        while True:
+            if len(self.messages) >= num:
+                if not before:
+                    return self.messages[-num:]
+                # TODO: handle multiple messages with same timestamp
+                # correctly.
+                if self.messages[num - 1]["timestamp"] < before:
+                    offset = 0
+                    while self.threads[offset + num - 1]["timestamp"] < before:
+                        offset += 1
+                    return self.threads[offset : offset + num]
+            self._fetch_earlier(client)
+
 
 class Server:
 
@@ -236,6 +299,14 @@ class Server:
         if load_session:
             self._read_session_file()
         self.thread_list = ThreadList()
+        self.threads = {}
+
+    def _get_thread(self, tid):
+        if tid in self.threads:
+            return self.threads[tid]
+        thread = Thread(tid)
+        self.threads[tid] = thread
+        return thread
 
     def _handle_message(self, message):
         message_type = message.get("message")
@@ -254,6 +325,15 @@ class Server:
             before = message.get("beforeTimestamp")
             return {
                 "threads": self.thread_list.get_threads(self.client, num, before=before)
+            }
+        if message_type == "getMessages":
+            num = message["numMessages"]
+            tid = message["threadID"]
+            before = message.get("beforeTimestamp")
+            return {
+                "messages": self._get_thread(tid).get_messages(
+                    self.client, num, before=before
+                )
             }
 
     def handle_message(self, message):

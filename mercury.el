@@ -357,6 +357,18 @@ thread."
 (define-derived-mode mercury-thread-mode mercury-mode "Mercury"
   "Major mode to view a Mercury thread.")
 
+(defcustom mercury-thread-keys
+  '(("g" . mercury-thread-refresh))
+  "Alist of keys for `mercury-thread-mode-map'.
+You must set this variable before loading Mercury in order for
+your setting to take effect. The keys are strings for `kbd', and
+the values are functions."
+  :type '(alist :key-type string :value-type function))
+
+(map-apply (lambda (keys func)
+             (define-key mercury-thread-mode-map (kbd keys) func))
+           mercury-thread-keys)
+
 (defvar-local mercury-thread-id nil
   "ID of thread displayed in current `mercury-thread-mode' buffer.")
 
@@ -374,6 +386,43 @@ point (which should be in a `mercury-thread-list-mode' buffer)."
       (mercury-thread-mode)
       (setq-local mercury-thread-id id)
       (pop-to-buffer (current-buffer)))))
+
+(defvar-local mercury--message-list nil
+  "Data for the thread messages displayed in the current buffer.
+The format is as returned by the Mercury server.")
+
+(defun mercury--thread-redisplay ()
+  "Recompute the text in the current (thread) buffer.
+This function uses the value of `mercury--message-list'."
+  ;; TODO: restore scroll position
+  (let ((inhibit-read-only t)
+        (line (line-number-at-pos))
+        (column (current-column)))
+    (erase-buffer)
+    (seq-do (lambda (message)
+              (insert (alist-get 'text thread) "\n"))
+            mercury--message-list)
+    (goto-char (point-min))
+    (forward-line (1- line))
+    (move-to-column column))
+  (message "Refreshing...done"))
+
+(defun mercury-thread-refresh (&optional more)
+  "Reset the current buffer to match the Mercury server's message list.
+With prefix arg MORE, display more messages than are currently
+shown, according to the value of
+`mercury-thread-list-block-size'."
+  (interactive "P")
+  (unless (derived-mode-p 'mercury-thread-mode)
+    (user-error "Not in a Mercury thread buffer"))
+  (message "Refreshing...")
+  (mercury--server-get-response
+   `((message . getMessages)
+     (numThreads . ,(+ mercury-thread-list-block-size
+                       (if more (length mercury--thread-list) 0))))
+   (lambda (resp)
+     (setq mercury--message-list (alist-get 'threads resp))
+     (mercury--thread-redisplay))))
 
 ;;;; Closing remarks
 
