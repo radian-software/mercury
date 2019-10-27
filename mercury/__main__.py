@@ -2,7 +2,7 @@ import argparse
 import json
 import sys
 
-import mercury
+from mercury import _server as mercury_server
 
 
 def send_message(message):
@@ -12,14 +12,13 @@ def send_message(message):
 
 def main():
     parser = argparse.ArgumentParser(
-        description="Emacs interface to Facebook Messenger",
+        description="Emacs interface to Facebook Messenger"
     )
     parser.add_argument(
-        "--no-load-session", dest="load_session", action="store_false",
-        help="Don't automatically log in from saved session cookies",
+        "--version", action="version", version="%(prog) pre-release version"
     )
     args = parser.parse_args()
-    server = mercury.Server(send_message, load_session=args.load_session)
+    server = mercury_server.Server(send_message)
     while True:
         try:
             line = input()

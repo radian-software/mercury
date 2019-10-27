@@ -4,7 +4,7 @@ description = "Advanced Enumerations (compatible with Python's stdlib Enum), Nam
 name = "aenum"
 optional = false
 python-versions = "*"
-version = "2.1.2"
+version = "2.2.1"
 
 [[package]]
 category = "main"
@@ -19,8 +19,8 @@ category = "main"
 description = "Classes Without Boilerplate"
 name = "attrs"
 optional = false
-python-versions = "*"
-version = "18.2.0"
+python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
+version = "19.2.0"
 
 [[package]]
 category = "main"
@@ -28,7 +28,7 @@ description = "Screen-scraping library"
 name = "beautifulsoup4"
 optional = false
 python-versions = "*"
-version = "4.7.1"
+version = "4.8.0"
 
 [package.dependencies]
 soupsieve = ">=1.2"
@@ -39,7 +39,7 @@ description = "Python package for providing Mozilla's CA Bundle."
 name = "certifi"
 optional = false
 python-versions = "*"
-version = "2019.6.16"
+version = "2019.9.11"
 
 [[package]]
 category = "main"
@@ -55,13 +55,13 @@ description = "Facebook Chat (Messenger) for Python"
 name = "fbchat"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4.0"
-version = "1.6.5"
+version = "1.8.3"
 
 [package.dependencies]
-aenum = "*"
-attrs = ">=18.2.0,<18.3.0"
-beautifulsoup4 = "*"
-requests = "*"
+aenum = ">=2.0,<3.0"
+attrs = ">=18.2"
+beautifulsoup4 = ">=4.0,<5.0"
+requests = ">=2.19,<3.0"
 
 [[package]]
 category = "main"
@@ -91,7 +91,7 @@ description = "A modern CSS selector implementation for Beautiful Soup."
 name = "soupsieve"
 optional = false
 python-versions = "*"
-version = "1.9.1"
+version = "1.9.4"
 
 [[package]]
 category = "main"
@@ -99,21 +99,30 @@ description = "HTTP library with thread-safe connection pooling, file post, and 
 name = "urllib3"
 optional = false
 python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*, <4"
-version = "1.25.3"
+version = "1.25.6"
+
+[[package]]
+category = "main"
+description = "Variables defined by the XDG Base Directory Specification"
+name = "xdg"
+optional = false
+python-versions = ">=3.6,<4.0"
+version = "4.0.1"
 
 [metadata]
-content-hash = "ca3f6c34a3d9d2f2f56c1079dbace8a760df8577e367c75efa68133c74d870c2"
-python-versions = ">=3.5, <4.0"
+content-hash = "fcca21cb6ad18d039ab488237e9cef8458045b110146d8cb763408b437708171"
+python-versions = ">=3.6, <4.0"
 
 [metadata.hashes]
-aenum = ["3df9b84cce5dc9ed77c337079f97b66c44c0053eb87d6f4d46b888dc45801e38", "7a77c205c4bc9d7fe9bd73b3193002d724aebf5909fa0d297534208953891ec8", "a3208e4b28db3a7b232ff69b934aef2ea1bf27286d9978e1e597d46f490e4687"]
+aenum = ["0e3589654ef090784971f7778dcb74b08c9b4ef80b33267c00f82ddeedac179a", "b12a7be3d89b270f266f8643aaa126404e5cdc0929bd6f09548b8eaed85e2aa1", "e4dab068cbe00295bbc3660cd562221b008687d0f7a4c40fc2dd7a80002126a7"]
 atomicwrites = ["03472c30eb2c5d1ba9227e4c2ca66ab8287fbfbbda3888aa93dc2e28fc6811b4", "75a9445bac02d8d058d5e1fe689654ba5a6556a1dfd8ce6ec55a0ed79866cfa6"]
-attrs = ["10cbf6e27dbce8c30807caf056c8eb50917e0eaafe86347671b57254006c3e69", "ca4be454458f9dec299268d472aaa5a11f67a4ff70093396e1ceae9c76cf4bbb"]
-beautifulsoup4 = ["034740f6cb549b4e932ae1ab975581e6103ac8f942200a0e9759065984391858", "945065979fb8529dd2f37dbb58f00b661bdbcbebf954f93b32fdf5263ef35348", "ba6d5c59906a85ac23dadfe5c88deaf3e179ef565f4898671253e50a78680718"]
-certifi = ["046832c04d4e752f37383b628bc601a7ea7211496b4638f6514d0e5b9acc4939", "945e3ba63a0b9f577b1395204e13c3a231f9bc0223888be653286534e5873695"]
+attrs = ["ec20e7a4825331c1b5ebf261d111e16fa9612c1f7a5e1f884f12bd53a664dfd2", "f913492e1663d3c36f502e5e9ba6cd13cf19d7fab50aa13239e420fef95e1396"]
+beautifulsoup4 = ["05668158c7b85b791c5abde53e50265e16f98ad601c402ba44d70f96c4159612", "25288c9e176f354bf277c0a10aa96c782a6a18a17122dba2e8cec4a97e03343b", "f040590be10520f2ea4c2ae8c3dae441c7cfff5308ec9d58a0ec0c1b8f81d469"]
+certifi = ["e4f3620cfea4f83eedc95b24abd9cd56f3c4b146dd0177e83a21b4eb49e21e50", "fd7c7c74727ddcf00e9acd26bba8da604ffec95bf1c2144e67aff7a8b50e6cef"]
 chardet = ["84ab92ed1c4d4f16916e05906b6b75a6c0fb5db821cc65e70cbd64a3e2a5eaae", "fc323ffcaeaed0e0a02bf4d117757b98aed530d9ed4531e3e15460124c106691"]
-fbchat = ["365b5dbce7d75a9a28a8986247425bdfb547a2f4188fc0e396ac9918646a3a66", "4555fcca997d212d2ff5a02f6298f41c1e066734922a607223b89b3ad7424c31"]
+fbchat = ["399d5faa9c99b26d12eae33cc90dbf69660c830f3c298b61d54e9a501f0270b3", "710efbc71c3d253ac05b4bf3cb1e82b0d4276e7c671a0f8a32f82c6a184150a1"]
 idna = ["c357b3f628cf53ae2c4c05627ecc484553142ca23264e593d327bcde5e9c3407", "ea8b7f6188e6fa117537c3df7da9fc686d485087abf6ac197f9c46432f7e4a3c"]
 requests = ["11e007a8a2aa0323f5a921e9e6a2d7e4e67d9877e85773fba9ba6419025cbeb4", "9cf5292fcd0f598c671cfc1e0d7d1a7f13bb8085e9a590f48c010551dc6c4b31"]
-soupsieve = ["6898e82ecb03772a0d82bd0d0a10c0d6dcc342f77e0701d0ec4a8271be465ece", "b20eff5e564529711544066d7dc0f7661df41232ae263619dede5059799cdfca"]
-urllib3 = ["b246607a25ac80bedac05c6f282e3cdaf3afb65420fd024ac94435cabe6e18d1", "dbe59173209418ae49d485b87d1681aefa36252ee85884c31346debd19463232"]
+soupsieve = ["605f89ad5fdbfefe30cdc293303665eff2d188865d4dbe4eb510bba1edfbfce3", "b91d676b330a0ebd5b21719cb6e9b57c57d433671f65b9c28dd3461d9a1ed0b6"]
+urllib3 = ["3de946ffbed6e6746608990594d08faac602528ac7015ac28d33cee6a45b7398", "9a107b99a5393caf59c7aa3c1249c16e6879447533d0887f4336dde834c7be86"]
+xdg = ["bf9032b027e3061d38c362a21b14dcf057a5b5a4906956f8e8278cefdf73f38b", "c939c99def394cbaf765a3ee55efd6ea7e4c5eaed8d9ebc2d03af84ba35dec57"]
