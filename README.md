@@ -66,7 +66,8 @@ Request-response messages:
         * `aid`: string, account ID
         * `limit`: integer, how many conversations to retrieve (or
           null for default)
-        * `offset`: integer, how many conversations to skip
+        * `offset`: integer, how many conversations to skip (or null
+          or omitted for default, skipping no conversations)
     * response:
         * `conversations`: list, sorted by `timestamp` descending
             * values: maps
@@ -85,9 +86,10 @@ Request-response messages:
     * message:
         * `aid`: string, account ID
         * `cid`: string, conversation ID
-        * `limit`: integer, how many messages to retrieve (or null for
-          default)
-        * `offset`: integer, how many messages to skip
+        * `limit`: integer, how many messages to retrieve (or null or
+          omitted for default)
+        * `offset`: integer, how many messages to skip (or null or
+          omitted for default, skipping no messages)
     * response:
         * `messages`: list, sorted by `timestamp`
             * values: maps

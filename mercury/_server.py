@@ -120,10 +120,21 @@ class Server:
             return {}
         if mtype == "getConversations":
             self._get_aid(data)
+            limit = data.get("limit")
+            if not isinstance(limit, (int, type(None))):
+                raise ClientError("limit is not an integer")
+            if limit is not None and limit <= 0:
+                return {"conversations": []}
+            offset = data.get("offset", 0)
+            if not isinstance(offset, int):
+                raise ClientError("offset is not an integer")
+            if offset < 0:
+                limit += offset
+                offset = 0
             account_data = store.get_account_data("messenger")
             if account_data is None:
                 account_data = {"name": "Messenger", "users": {}, "conversations": []}
-            existing_cids = {
+            existing_account_cids = {
                 c["id"]: idx for idx, c in enumerate(account_data["conversations"])
             }
             you = self.service.get_you()
@@ -133,17 +144,38 @@ class Server:
             if account_data["conversations"] and not service_data["conversations"]:
                 raise ServiceError("upstream forgot about all our conversations")
             elif account_data["conversations"] and service_data["conversations"]:
-                while (
-                    service_data["conversations"][-1]["timestamp"]
-                    >= account_data["conversations"][0]["timestamp"]
-                ):
-                    older_service_data = self.service.get_conversations(
-                        before=service_data["conversations"][-1]["timestamp"]
-                    )
+                while True:
+                    if min(
+                        c["timestamp"] for c in service_data["conversations"]
+                    ) >= max(c["timestamp"] for c in account_data["conversations"]):
+                        before = min(
+                            c["timestamp"] for c in service_data["conversations"]
+                        )
+                    elif (
+                        len(
+                            set(
+                                c["id"]
+                                for c in service_data["conversations"]
+                                + account_data["conversations"]
+                            )
+                        )
+                        < (limit or 0) + offset
+                    ):
+                        before = min(
+                            c["timestamp"]
+                            for c in service_data["conversations"]
+                            + account_data["conversations"]
+                        )
+                    else:
+                        break
+                    older_service_data = self.service.get_conversations(before=before)
                     if not older_service_data["conversations"]:
                         break
-                    for conversation in older_service_data:
-                        if conversation["id"] not in existing_cids:
+                    existing_service_cids = {
+                        c["id"] for c in service_data["conversations"]
+                    }
+                    for conversation in older_service_data["conversations"]:
+                        if conversation["id"] not in existing_service_cids:
                             service_data["conversations"].append(conversation)
                     for uid, user in older_service_data.get("users", {}).items():
                         if "users" not in service_data:
@@ -169,9 +201,9 @@ class Server:
                     "messages"
                 ), "can't handle eager message fetch yet"
                 cid = conversation["id"]
-                if cid in existing_cids:
+                if cid in existing_account_cids:
                     existing_conversation = account_data["conversations"][
-                        existing_cids[cid]
+                        existing_account_cids[cid]
                     ]
                     existing_conversation["name"] = conversation["name"]
                     existing_conversation["timestamp"] = conversation["timestamp"]
@@ -246,7 +278,7 @@ class Server:
                         ],
                     }
                     for c in account_data["conversations"]
-                ]
+                ][offset : offset + limit]
             }
             store.set_account_data("messenger", account_data)
             return result
