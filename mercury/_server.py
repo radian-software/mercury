@@ -31,55 +31,6 @@ class Server:
             raise ClientError("no account with ID: {}".format(aid))
         return aid
 
-    def _convert_conversations(self, service_conversations):
-        """
-        Take a list of conversations as returned by a Mercury backend, run
-        sanity checks, and convert it into the format used in the
-        persistent data store (except with an extra "timestamp" key on
-        the conversations). Return a 2-tuple of a map as used in the
-        "conversations" key and a map from user IDs to names.
-        """
-        conversations = {}
-        if not util.is_sorted(service_conversations, key=lambda c: -c["timestamp"]):
-            raise ServiceError(
-                "conversations returned out of order: {}",
-                [c["timestamp"] for c in service_conversations],
-            )
-        for sc in service_conversations:
-            if sc["id"] in conversations:
-                raise ServiceError("duplicate conversation ID {} returned", sc["id"])
-            conversations[sc["id"]] = {
-                "name": sc["name"],
-                "participants": {p["id"] for p in sc["participants"]},
-                "timestamp": sc["timestamp"],
-            }
-        return (
-            conversations,
-            {
-                p["id"]: p["name"]
-                for sc in service_conversations
-                for p in sc["participants"]
-            },
-        )
-
-    def _ensure_conversations_loaded(self, account_data, index):
-        existing_conversations = account_data["conversations"]
-        latest_conversations = self._convert_conversations(
-            self.service.get_conversations()
-        )
-        if not latest_conversations:
-            if existing_conversations:
-                raise ServiceError(
-                    "{} conversations disappeared from upstream!",
-                    len(existing_conversations),
-                )
-            # Nothing at all has happened yet.
-            return
-        # Fetch more conversations until the oldest one we've fetched
-        # is strictly older than the most recent one we already had.
-        while existing_conversations and min():
-            pass
-
     def _handle_message(self, mtype, data):
         if mtype == "addAccount":
             raise ClientError("addAccount not yet implemented")
