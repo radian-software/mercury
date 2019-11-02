@@ -10,6 +10,7 @@ from fbchat import FBchatException
 
 from mercury import _api as api
 from mercury._api import LoginRequiredError, ServiceError
+from mercury._util import log
 
 
 def natural_language_join(names):
@@ -68,6 +69,7 @@ class MessengerService(api.Service):
     @wrap_fbchat(require_login=False)
     def restore_session(self, session):
         try:
+            log("fbchat: restoreSession(...)")
             self.client = fbchat.Client(None, None, session_cookies=json.loads(session))
         except (FBchatException, json.JSONDecodeError):
             raise LoginRequiredError
@@ -90,12 +92,14 @@ class MessengerService(api.Service):
 
     @wrap_fbchat(require_login=False)
     def login(self, fields):
+        log("fbchat: login({}, ...)", repr(fields["email"]))
         self.client = fbchat.Client(fields["email"], fields["password"])
 
     @wrap_fbchat(require_login=False)
     def logout(self):
         if self.client is None:
             return
+        log("fbchat: logout()")
         if not self.client.logout():
             raise ServiceError("failed to log out")
         self.client = None
@@ -106,6 +110,10 @@ class MessengerService(api.Service):
 
     @wrap_fbchat(require_login=True)
     def get_users(self, uids):
+        display_uids = list(uids)
+        if len(uids) > 10:
+            display_uids[10:] = ["..."]
+        log("fbchat: fetchUserInfo({})", ", ".join(display_uids))
         results = {
             u.uid: {"name": u.name} for u in self.client.fetchUserInfo(*uids).values()
         }
@@ -123,6 +131,7 @@ class MessengerService(api.Service):
 
     @wrap_fbchat(require_login=True)
     def get_conversations(self, before):
+        log("fbchat: fetchThreadList(before={})", before)
         fb_threads = self.client.fetchThreadList(before=before)
         # Figure out what user IDs we have to fetch info for in order
         # to correctly assign thread names.
@@ -166,6 +175,7 @@ class MessengerService(api.Service):
 
     @wrap_fbchat(require_login=True)
     def get_messages(self, tid, before):
+        log("fbchat: fetchThreadMessages({}, before={})", tid, before)
         fb_messages = self.client.fetchThreadMessages(thread_id=tid, before=before)
         messages = []
         participant_info = {}
@@ -181,6 +191,7 @@ class MessengerService(api.Service):
                 if isinstance(attachment, fbchat.FileAttachment):
                     messages.append({"type": "file", "content": attachment.url, **base})
                 elif isinstance(attachment, fbchat.ImageAttachment):
+                    log("fbchat: fetchImageUrl({})", attachment.uid)
                     messages.append(
                         {
                             "type": "image",
@@ -203,10 +214,17 @@ class MessengerService(api.Service):
 
     @wrap_fbchat(require_login=True)
     def send_message(self, cid, mtype, content):
-        # TODO: do I need to specify the thread_type?
+        # TODO: do I need to specify the thread_type in order to send
+        # to a group?
         if mtype == "text":
+            if len(content) > 80:
+                display_content = repr(content[:80]) + "..."
+            else:
+                display_content = repr(content)
+            log("fbchat: send({}, thread_id={})", display_content, cid)
             self.client.send(fbchat.Message(text=content), thread_id=cid)
         elif mtype == "image" or mtype == "file":
+            log("fbchat: sendLocalFiles({}, thread_id={})", repr(content), cid)
             self.client.sendLocalFiles([content], thread_id=cid)
         else:
             raise ValueError("uh oh, unknown message type: {}".format(mtype))

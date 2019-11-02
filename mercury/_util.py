@@ -3,11 +3,18 @@ Your standard util module for anything that's needed by more than one
 other module.
 """
 
+import sys
+import time
+
 import xdg
 
 
 # Directory where all the Mercury files are stored by default.
 MERCURY_DIR = xdg.XDG_DATA_HOME / "mercury"
+
+# Timestamp for when module is imported, used to display relative
+# times in log messages.
+START_TIME = time.time()
 
 
 def is_sorted(lst, key=id):
@@ -37,3 +44,15 @@ def merge_sorted_seqs(left, right, key=id):
         else:
             yield cur_right
             cur_right = next(right_iter, sentinel)
+
+
+def log(fmt, *args, **kwargs):
+    """
+    Log message to stderr with relative timestamp. Same arguments as
+    format.
+    """
+    print(
+        "[{:09.2f}s]".format(time.time() - START_TIME),
+        fmt.format(*args, **kwargs),
+        file=sys.stderr,
+    )
