@@ -85,20 +85,21 @@ class Server:
             account_data = store.get_account_data("messenger")
             if account_data is None:
                 account_data = {"name": "Messenger", "users": {}, "conversations": []}
-            existing_account_cids = {
-                c["id"]: idx for idx, c in enumerate(account_data["conversations"])
-            }
+            existing_account_cids = {c["id"] for c in account_data["conversations"]}
             you = self.service.get_you()
             users_with_data_needed = set()
             users_with_data_fetched = set()
             service_data = self.service.get_conversations(before=None)
             if account_data["conversations"] and not service_data["conversations"]:
                 raise ServiceError("upstream forgot about all our conversations")
-            elif account_data["conversations"] and service_data["conversations"]:
+            elif service_data["conversations"]:
+                for conversation in service_data["conversations"]:
+                    conversation["new"] = True
                 while True:
-                    if min(
+                    if account_data["conversations"] and min(
                         c["timestamp"] for c in service_data["conversations"]
                     ) >= max(c["timestamp"] for c in account_data["conversations"]):
+                        fetching_new_conversations = False
                         before = min(
                             c["timestamp"] for c in service_data["conversations"]
                         )
@@ -112,6 +113,7 @@ class Server:
                         )
                         < (limit or 0) + offset
                     ):
+                        fetching_new_conversations = False
                         before = min(
                             c["timestamp"]
                             for c in service_data["conversations"]
@@ -127,6 +129,7 @@ class Server:
                     }
                     for conversation in older_service_data["conversations"]:
                         if conversation["id"] not in existing_service_cids:
+                            conversation["new"] = fetching_new_conversations
                             service_data["conversations"].append(conversation)
                     for uid, user in older_service_data.get("users", {}).items():
                         if "users" not in service_data:
@@ -141,21 +144,18 @@ class Server:
                 service_data["conversations"]
             ):
                 raise ServiceError("upstream returned non-unique conversation IDs")
-            if not util.is_sorted(
-                service_data["conversations"], key=lambda c: -c["timestamp"]
-            ):
-                raise ServiceError(
-                    "upstream returned conversations out of timestamp order"
-                )
+            prepend_conversations = []
+            append_conversations = []
+            cids_to_remove = set()
             for conversation in service_data["conversations"]:
                 assert not conversation.get(
                     "messages"
                 ), "can't handle eager message fetch yet"
                 cid = conversation["id"]
                 if cid in existing_account_cids:
-                    existing_conversation = account_data["conversations"][
-                        existing_account_cids[cid]
-                    ]
+                    existing_conversation = next(
+                        c for c in account_data["conversations"] if c["id"] == cid
+                    )
                     existing_conversation["name"] = conversation["name"]
                     existing_conversation["timestamp"] = conversation["timestamp"]
                     for uid in list(existing_conversation["participants"]):
@@ -180,8 +180,18 @@ class Server:
                             "participants", {}
                         ).items()
                     }
+                    (
+                        prepend_conversations
+                        if conversation["new"]
+                        else append_conversations
+                    ).append(existing_conversation)
+                    cids_to_remove.add(cid)
                 else:
-                    account_data["conversations"].append(
+                    (
+                        prepend_conversations
+                        if conversation["new"]
+                        else append_conversations
+                    ).append(
                         {
                             "id": conversation["id"],
                             "name": conversation["name"],
@@ -200,8 +210,15 @@ class Server:
                         }
                     )
                 users_with_data_needed.update(conversation["participants"])
-            account_data["conversations"].sort(key=lambda c: -c["timestamp"])
-            # TODO: Fetch the older conversations here.
+            account_data["conversations"] = (
+                prepend_conversations
+                + [
+                    c
+                    for c in account_data["conversations"]
+                    if c["id"] not in cids_to_remove
+                ]
+                + append_conversations
+            )
             extra_user_info = self.service.get_users(
                 users_with_data_needed - users_with_data_fetched
             )
@@ -219,14 +236,17 @@ class Server:
                         "id": c["id"],
                         "name": c["name"],
                         "timestamp": c["timestamp"],
-                        "participants": [
-                            {
-                                "id": uid,
-                                "name": account_data["users"][uid]["name"],
-                                "you": uid == you,
-                            }
-                            for uid, p in c["participants"].items()
-                        ],
+                        "participants": sorted(
+                            (
+                                {
+                                    "id": uid,
+                                    "name": account_data["users"][uid]["name"],
+                                    "you": uid == you,
+                                }
+                                for uid, p in c["participants"].items()
+                            ),
+                            key=lambda p: p["name"],
+                        ),
                     }
                     for c in account_data["conversations"]
                 ][offset : offset + limit]

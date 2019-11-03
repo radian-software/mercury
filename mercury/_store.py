@@ -137,7 +137,8 @@ def _assert_valid_account_data(account_data):
     assert len(set(c["id"] for c in account_data["conversations"])) == len(
         account_data["conversations"]
     )
-    assert util.is_sorted(account_data["conversations"], key=lambda c: -c["timestamp"])
+    # Unfortunately, because of Messenger, we can't guarantee that
+    # conversations are sorted by timestamp. Rip.
 
 
 def _read_account_data():
