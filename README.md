@@ -200,7 +200,7 @@ by Mercury on the service client.
                 * `timestamp`: integer, most recent message timestamp
                   (may be more recent than any message we have if we
                   haven't fetched the most recent message yet)
-                * `participants`: map or omitted
+                * `participants`: map
                     * keys: strings, user IDs
                     * values: maps
                         * `lastSeenMessage`: string, message ID (or
