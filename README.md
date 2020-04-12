@@ -1,12 +1,10 @@
 # Mercury
 
-Mercury is an [Emacs](https://www.gnu.org/software/emacs/) interface
-to [Facebook Messenger](https://www.messenger.com/), SMS (via
-[Pushbullet](https://www.pushbullet.com/)), and
-[Signal](https://signal.org/).
-
-It is currently under construction, and hence does not actually
-provide these features yet.
+Mercury was to be an [Emacs](https://www.gnu.org/software/emacs/)
+interface to [Facebook Messenger](https://www.messenger.com/), SMS
+(via [Pushbullet](https://www.pushbullet.com/)), and
+[Signal](https://signal.org/). Unfortunately, I lost momentum on the
+project, although I still think it would be extremely cool.
 
 ## Message-passing API
 
