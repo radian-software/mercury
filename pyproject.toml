@@ -2,7 +2,7 @@
 name = "mercury"
 version = "0"
 description = "Emacs interface to Facebook Messenger"
-authors = ["Radon Rosborough <radon.neon@gmail.com>"]
+authors = ["Radian LLC <contact+mercury@radian.codes>"]
 
 [tool.poetry.dependencies]
 python = ">=3.6, <4.0"

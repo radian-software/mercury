@@ -1,10 +1,10 @@
 ;;; mercury.el --- Emacs interface to FB Messenger. -*- lexical-binding: t -*-
 
-;; Copyright (C) 2019 Radon Rosborough
+;; Copyright (C) 2019-2022 Radian LLC <contact+mercury@radian.codes>
 
-;; Author: Radon Rosborough <radon.neon@gmail.com>
+;; Author: Radian LLC <contact+mercury@radian.codes>
 ;; Created: 30 Apr 2019
-;; Homepage: https://github.com/raxod502/mercury
+;; Homepage: https://github.com/radian-software/mercury
 ;; Keywords: applications
 ;; Package-Requires: ((emacs "25.2"))
 ;; Version: 0
@@ -13,7 +13,7 @@
 
 ;; TODO
 
-;; Please see <https://github.com/raxod502/mercury> for more
+;; Please see <https://github.com/radian-software/mercury> for more
 ;; information.
 
 ;;; Code:

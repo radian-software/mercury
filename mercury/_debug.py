@@ -1,4 +1,5 @@
 import json
+import os
 
 from mercury import _messenger as messenger
 
@@ -6,7 +7,7 @@ from mercury import _messenger as messenger
 def get_service():
     service = messenger.MessengerService()
     try:
-        with open("/home/raxod502/.fbchat") as f:
+        with open(os.path.expanduser("~/.fbchat")) as f:
             cookies = json.load(f)["cookies"]
     except (FileNotFoundError, json.JSONDecodeError):
         pass
