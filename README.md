@@ -6,6 +6,9 @@ interface to [Facebook Messenger](https://www.messenger.com/), SMS
 [Signal](https://signal.org/). Unfortunately, I lost momentum on the
 project, although I still think it would be extremely cool.
 
+Edit 2026: [Beeper](https://www.beeper.com/) exists. Maybe an Emacs
+interface for that would be easier...
+
 ## Message-passing API
 
 Communication between the Emacs Lisp frontend and the Python backend
